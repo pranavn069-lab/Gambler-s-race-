@@ -127,7 +127,12 @@
         .dice-green { background-color: #48bb78; }
         .dice-yellow { background-color: #f6e05e; }
         .dice-red { background-color: #e53e3e; }
-        .dice:disabled { cursor: not-allowed; opacity: 0.5; }
+        .dice.disabled { 
+            background-color: #6b7280;
+            color: #a0aec0;
+            cursor: not-allowed; 
+            opacity: 0.7; 
+        }
 
         button {
             background-color: #4299e1;
@@ -205,12 +210,12 @@
             <div class="controls mt-8">
                 <p class="text-lg">Player <span id="currentPlayerText">1</span>'s turn</p>
                 <div class="dice-container" id="diceContainer">
-                    <div id="greenDice" class="dice dice-green text-gray-800"></div>
-                    <div id="yellowDice" class="dice dice-yellow text-gray-800"></div>
-                    <div id="redDice" class="dice dice-red text-gray-800"></div>
+                    <div id="greenDice" class="dice dice-green"></div>
+                    <div id="yellowDice" class="dice dice-yellow"></div>
+                    <div id="redDice" class="dice dice-red"></div>
                 </div>
-                <button id="rollDiceBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors">Roll Dice</button>
-                <button id="refreshBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors">Restart Game</button>
+                <button id="rollDiceBtn" class="bg-blue-500 hover-bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors">Roll Dice</button>
+                <button id="refreshBtn" class="bg-gray-500 hover-bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors">Restart Game</button>
                 <div id="messageBox" class="message-box bg-gray-800 text-gray-300 rounded-lg p-4 shadow-md text-center">
                     Welcome! Roll the dice to begin.
                 </div>
@@ -448,7 +453,7 @@
                 rollDiceBtn.disabled = true;
                 disableDiceChoices();
             } else {
-                rollDiceBtn.disabled = false;
+                // Let the endTurn function handle enabling the roll button
                 disableDiceChoices();
             }
         }
@@ -457,21 +462,31 @@
             greenDiceDiv.disabled = true;
             yellowDiceDiv.disabled = true;
             redDiceDiv.disabled = true;
+            greenDiceDiv.classList.add('disabled');
+            yellowDiceDiv.classList.add('disabled');
+            redDiceDiv.classList.add('disabled');
         }
 
         function enableDiceChoices() {
             greenDiceDiv.disabled = false;
             yellowDiceDiv.disabled = false;
             redDiceDiv.disabled = false;
+            greenDiceDiv.classList.remove('disabled');
+            yellowDiceDiv.classList.remove('disabled');
+            redDiceDiv.classList.remove('disabled');
 
             const player = players[currentPlayerIndex];
             if (player.canOnlyUseGreen) {
                 yellowDiceDiv.disabled = true;
                 redDiceDiv.disabled = true;
+                yellowDiceDiv.classList.add('disabled');
+                redDiceDiv.classList.add('disabled');
             }
             if (player.canOnlyUseRed) {
                 greenDiceDiv.disabled = true;
                 yellowDiceDiv.disabled = true;
+                greenDiceDiv.classList.add('disabled');
+                yellowDiceDiv.classList.add('disabled');
             }
         }
 
@@ -506,13 +521,12 @@
             isChoosingDice = false;
 
             const player = players[currentPlayerIndex];
-            if (player.skipTurn) {
-                showMessage(`Player ${player.id}'s turn is skipped!`);
-                player.skipTurn = false;
-                endTurn();
-                return;
-            }
 
+            // A restriction from a previous turn has now been enforced by `enableDiceChoices`.
+            // We can now reset these flags for the player's *next* turn.
+            player.canOnlyUseGreen = false;
+            player.canOnlyUseRed = false;
+            
             const rollResult = diceResults[diceType];
             chosenDiceType = diceType;
             lastRoll = rollResult;
@@ -644,12 +658,12 @@
                     showMessage(`Action Card: ${cardText}! You moved back ${rolledNumber} spaces.`);
                     break;
                 case "Weak roll: can only roll the Green die next turn":
-                    opponent.canOnlyUseGreen = true;
-                    showMessage(`Action Card: ${cardText}! Player ${opponent.id} can only use the green die next turn.`);
+                    player.canOnlyUseGreen = true;
+                    showMessage(`Action Card: ${cardText}! You can only use the green die on your next turn.`);
                     break;
                 case "Risk Roll: can only roll the red die next turn":
-                    opponent.canOnlyUseRed = true;
-                    showMessage(`Action Card: ${cardText}! Player ${opponent.id} can only use the red die next turn.`);
+                    player.canOnlyUseRed = true;
+                    showMessage(`Action Card: ${cardText}! You can only use the red die on your next turn.`);
                     break;
                 case "6 or nothing: have to roll a 6 to proceed. Red die is unusable.":
                     let foundSix = false;
@@ -673,15 +687,25 @@
                     break;
             }
             
-            player.canOnlyUseGreen = false;
-            player.canOnlyUseRed = false;
             endTurn();
         }
 
         function endTurn() {
             currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-            updateUI();
-            rollDiceBtn.disabled = false;
+            updateUI(); // This updates the player text
+
+            const nextPlayer = players[currentPlayerIndex];
+
+            if (nextPlayer.skipTurn) {
+                rollDiceBtn.disabled = true; // Make sure the skipped player can't roll
+                setTimeout(() => {
+                    showMessage(`Player ${nextPlayer.id}'s turn is skipped!`);
+                    nextPlayer.skipTurn = false; // Reset the flag
+                    endTurn(); // Immediately start the next turn
+                }, 1500); // A small delay to make the UI change readable
+            } else {
+                rollDiceBtn.disabled = false; // It's a normal turn
+            }
         }
 
         function resetGame() {
@@ -731,5 +755,9 @@
     </script>
 </body>
 </html>
+
+
+
+
 
 
